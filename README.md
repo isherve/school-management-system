@@ -10,11 +10,11 @@ The assistant reads live records the signed-in user is allowed to see. If `OPENA
 |-------------|--------------------------|
 | Responsive UI | React + Vite + Tailwind. Sidebar collapses on small screens. Language switcher (EN / FR / RW). |
 | Backend API | Express REST API under `/api/v1`. |
-| Database | Prisma. Local database is SQLite (`backend/prisma/dev.db`). Chats, students, attendance, fees, exams, and timetables are stored and reloaded. |
+| Database | Prisma + **PostgreSQL** (local via `docker-compose`, production via **Neon** on Vercel). |
 | AI | School assistant on `/ai`, plus staff drafting tools (report comment, lesson outline, risk check). Live model via OpenAI-compatible API or Gemini when a key is present. |
 | Localization | Interface and assistant replies in English, French, and Kinyarwanda. Demo records use Rwandan names, RWF, and `Africa/Kigali`. |
 | Auth and workflows | JWT login, role checks, dashboards, attendance, exams, fees, and portals for student, parent, teacher, finance, and other staff. |
-| Deployment config | `frontend/vercel.json` and `backend/railway.json` are in the repo. There is no live URL in this workspace. See [Deployment](#deployment). |
+| Deployment config | Root `vercel.json` — frontend + Express API on **Vercel**, database on **Neon**. See [Deployment](#deployment). |
 
 ## Architecture
 
@@ -28,8 +28,7 @@ Express API  (/api/v1)
   infrastructure/            Prisma, email, file storage, LLM client
         │
         ▼
-SQLite via Prisma (local). PostgreSQL is described in docker-compose
-but the current schema provider is sqlite.
+PostgreSQL via Prisma (local Docker or Neon in production).
 ```
 
 The UI language is chosen in the header and sent with each assistant message. The API checks the JWT, loads a **role-scoped snapshot** of school data, then either calls the configured model or builds a fallback answer from that snapshot. Threads and messages are saved on `AiConversation` and `AiMessage`.
@@ -83,9 +82,11 @@ No API keys are stored in the repo. Put them only in `backend/.env` (gitignored)
 Requirements: Node.js 20+, npm.
 
 ```bash
+docker compose up -d postgres
 npm install
 cd backend && npm install && cd ../frontend && npm install && cd ..
 cd backend
+cp .env.example .env
 npx prisma generate
 npx prisma db push
 npm run db:seed
@@ -98,9 +99,7 @@ npm run dev
 
 `npm run dev` starts the API on port **5020** and the UI on port **8080**. The Vite dev server proxies `/api` to the API, so leave `VITE_API_URL` empty locally.
 
-Copy `backend/.env.example` to `backend/.env` before the first run. The example database URL is `file:./dev.db`, which matches the Prisma schema.
-
-`docker-compose.yml` can start PostgreSQL and Redis, but the Prisma datasource is SQLite. Do not point `DATABASE_URL` at Postgres until the schema provider is changed and migrations exist.
+Copy `backend/.env.example` to `backend/.env`. Start Postgres with `docker compose up -d postgres` (matches the default `DATABASE_URL` in the example).
 
 ### Demo logins
 
@@ -126,7 +125,7 @@ Backend (`backend/.env.example`):
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | SQLite file, default `file:./dev.db` |
+| `DATABASE_URL` | PostgreSQL connection string (local Docker or Neon) |
 | `JWT_SECRET`, `JWT_REFRESH_SECRET` | Token signing. Change these before any real deployment. |
 | `PORT` | API port, default `5020` |
 | `FRONTEND_URL` | Browser origin for CORS, default `http://localhost:8080` |
@@ -139,17 +138,29 @@ Frontend (`frontend/.env.example`):
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_API_URL` | Leave empty locally. On Vercel set `https://<your-api>/api/v1`. |
+| `VITE_API_URL` | Leave empty locally and on Vercel when using the root `vercel.json` (same-origin `/api/v1`). |
 
 ## Deployment
 
+**Stack:** GitHub → **Vercel** (React UI + Express API) + **Neon** (free PostgreSQL). No Railway.
+
 **GitHub:** [github.com/isherve/school-management-system](https://github.com/isherve/school-management-system) (`main`).
 
-**Frontend (Vercel):** Production alias [school-management-system-gamma-lyart.vercel.app](https://school-management-system-gamma-lyart.vercel.app) (repo root `vercel.json` builds `frontend/`). In the Vercel project, set **`VITE_API_URL`** to your live API base, e.g. `https://<api-host>/api/v1`. Turn off **Deployment Protection** if the site should be public.
+**Live UI:** [school-management-system-gamma-lyart.vercel.app](https://school-management-system-gamma-lyart.vercel.app)
 
-**Backend (Railway or similar):** Use root directory `backend`. Start command in `backend/railway.json` is `npx prisma db push && node dist/server.js`. Set `DATABASE_URL` (SQLite file on a volume, or switch the Prisma provider to PostgreSQL for managed DB), `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL` (Vercel URL), and optional `SMTP_*` for email OTP. Run `npm run db:seed` once after the first deploy. A new Railway trial may require a paid plan before deploy.
+1. Create a free database at [neon.tech](https://neon.tech) and copy the **PostgreSQL** connection string.
+2. In the Vercel project **school-management-system** → **Settings → Environment Variables** (Production), set:
+   - `DATABASE_URL` — Neon URL (required for API build and runtime)
+   - `JWT_SECRET`, `JWT_REFRESH_SECRET` — long random strings
+   - `FRONTEND_URL` — `https://school-management-system-gamma-lyart.vercel.app`
+   - `NODE_ENV` — `production`
+   - Optional: `SMTP_*` for email OTP ([docs/EMAIL-SMTP.md](docs/EMAIL-SMTP.md))
+3. Redeploy (push to `main` or **Redeploy** in Vercel). Root `vercel.json` builds the frontend and deploys the API under `/api/*`.
+4. Seed demo data once from your machine:  
+   `cd backend && DATABASE_URL="<neon-url>" npm run db:seed`
+5. Turn off **Deployment Protection** in Vercel if the site should be public.
 
-**Note:** Serverless-only hosting (Express on Vercel without a real database) is not supported for this app; the API needs a persistent database.
+Do not commit `.env` files.
 
 Do not commit `.env` files.
 

@@ -1,8 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci --prefix frontend",
+  "installCommand": "npm ci --prefix frontend && npm ci --prefix backend",
   "buildCommand": "npm run build --prefix frontend",
   "outputDirectory": "frontend/dist",
-  "framework": "vite",
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "services": {
+    "backend": {
+      "root": "backend",
+      "entrypoint": "src/app.ts",
+      "buildCommand": "npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run build"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": { "type": "service", "service": "backend" }
+    },
+    {
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
