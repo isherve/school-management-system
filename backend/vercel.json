@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm install --include=dev && npx prisma generate && npx prisma db push --accept-data-loss && npm run build",
+  "outputDirectory": ".",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}

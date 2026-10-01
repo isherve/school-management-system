@@ -44,3 +44,6 @@ uploads/
 temp/
 
 .vercel
+.env*
+!.env.example
+!**/.env.example

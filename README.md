@@ -142,23 +142,22 @@ Frontend (`frontend/.env.example`):
 
 ## Deployment
 
-**Stack:** GitHub → **Vercel** (React UI + Express API) + **Neon** (free PostgreSQL). No Railway.
+**Stack:** GitHub → **Vercel** + **Neon** (PostgreSQL via Vercel Marketplace). No Railway.
 
-**GitHub:** [github.com/isherve/school-management-system](https://github.com/isherve/school-management-system) (`main`).
+| | URL |
+|--|-----|
+| **App (UI)** | [school-management-system-gamma-lyart.vercel.app](https://school-management-system-gamma-lyart.vercel.app) |
+| **API** | [school-management-system-api-zeta.vercel.app](https://school-management-system-api-zeta.vercel.app) (`/api/v1/...`) |
 
-**Live UI:** [school-management-system-gamma-lyart.vercel.app](https://school-management-system-gamma-lyart.vercel.app)
+**Vercel projects:** `school-management-system` (repo root, `vercel.json` → `frontend/`) and `school-management-system-api` (root directory **`backend`**, `backend/vercel.json` + `backend/api/index.ts`).
 
-1. Create a free database at [neon.tech](https://neon.tech) and copy the **PostgreSQL** connection string.
-2. In the Vercel project **school-management-system** → **Settings → Environment Variables** (Production), set:
-   - `DATABASE_URL` — Neon URL (required for API build and runtime)
-   - `JWT_SECRET`, `JWT_REFRESH_SECRET` — long random strings
-   - `FRONTEND_URL` — `https://school-management-system-gamma-lyart.vercel.app`
-   - `NODE_ENV` — `production`
-   - Optional: `SMTP_*` for email OTP ([docs/EMAIL-SMTP.md](docs/EMAIL-SMTP.md))
-3. Redeploy (push to `main` or **Redeploy** in Vercel). Root `vercel.json` builds the frontend and deploys the API under `/api/*`.
-4. Seed demo data once from your machine:  
-   `cd backend && DATABASE_URL="<neon-url>" npm run db:seed`
-5. Turn off **Deployment Protection** in Vercel if the site should be public.
+**Neon:** Integration resource **`edusms-db`** is connected to both projects (`DATABASE_URL` injected automatically).
+
+**Production env (API project):** `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL` (UI URL), `NODE_ENV=production`. Optional `SMTP_*` — [docs/EMAIL-SMTP.md](docs/EMAIL-SMTP.md).
+
+**UI project:** `VITE_API_URL=https://school-management-system-api-zeta.vercel.app/api/v1`
+
+**Seed (once):** `cd backend` with Neon `DATABASE_URL` → `npx prisma db push && npm run db:seed`
 
 Do not commit `.env` files.
 
