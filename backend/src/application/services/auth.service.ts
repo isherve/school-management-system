@@ -7,6 +7,7 @@ import { config } from '../../config/index.js';
 import {
   ConflictError,
   NotFoundError,
+  ServiceUnavailableError,
   UnauthorizedError,
   ValidationError,
 } from '../../shared/errors/app.error.js';
@@ -129,7 +130,18 @@ export class AuthService {
     return user;
   }
 
+  private smtpUnavailableError(): ServiceUnavailableError {
+    return new ServiceUnavailableError(
+      'Email (SMTP) is required to send login codes. Configure SMTP_HOST, SMTP_USER, and SMTP_PASS on the server.',
+      'SMTP_NOT_CONFIGURED'
+    );
+  }
+
   private async deliverLoginOtp(normalizedEmail: string, firstName: string) {
+    if (config.env === 'production' && !isEmailConfigured()) {
+      throw this.smtpUnavailableError();
+    }
+
     await this.cleanupExpiredOtps();
 
     const code = this.generateOtpCode();
@@ -152,9 +164,16 @@ export class AuthService {
       emailSent = true;
     } catch (err) {
       console.error(`[Email failed] Could not send login code to ${normalizedEmail}:`, err);
+      await prisma.loginOtp.delete({ where: { email: normalizedEmail } }).catch(() => undefined);
+      if (config.env === 'production') {
+        throw new ServiceUnavailableError(
+          'Could not deliver the login code by email. Verify SMTP credentials and try again.',
+          'EMAIL_DELIVERY_FAILED'
+        );
+      }
     }
 
-    if (!isEmailConfigured()) {
+    if (config.env === 'development' && !isEmailConfigured()) {
       console.log(`[Login Code] ${normalizedEmail}: ${code}`);
     }
 

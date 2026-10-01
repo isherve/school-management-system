@@ -153,7 +153,7 @@ Frontend (`frontend/.env.example`):
 
 **Neon:** Integration resource **`edusms-db`** is connected to both projects (`DATABASE_URL` injected automatically).
 
-**Production env (API project):** `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL` (UI URL), `NODE_ENV=production`. Optional `SMTP_*` — [docs/EMAIL-SMTP.md](docs/EMAIL-SMTP.md).
+**Production env (API project):** `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL` (UI URL), `NODE_ENV=production`, and **required** `SMTP_*` (Gmail App Password) — [docs/EMAIL-SMTP.md](docs/EMAIL-SMTP.md). Login codes are email-only in production.
 
 **UI project:** `VITE_API_URL=https://school-management-system-api-zeta.vercel.app/api/v1`
 

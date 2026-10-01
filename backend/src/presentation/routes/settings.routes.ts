@@ -27,6 +27,7 @@ router.get('/integrations', authorize(...STAFF_ROLES), asyncHandler(async (_req,
       smtpPort: config.email.port,
       emailFrom: config.email.from,
       loginOtpEnabled: true,
+      smtpMandatory: config.env === 'production',
       devCodeOnScreen: config.env === 'development' && !isEmailConfigured(),
     },
   });

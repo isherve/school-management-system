@@ -4,6 +4,8 @@ import rateLimit from 'express-rate-limit';
 import { authService } from '../../application/services/auth.service.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { validate, asyncHandler } from '../middleware/error.middleware.js';
+import { config } from '../../config/index.js';
+import { isEmailConfigured } from '../../infrastructure/email/email.service.js';
 
 const router = Router();
 
@@ -22,6 +24,19 @@ const otpVerifyLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many verification attempts. Please try again later.' },
 });
+
+router.get(
+  '/otp-email-status',
+  asyncHandler(async (_req, res) => {
+    res.json({
+      success: true,
+      data: {
+        configured: isEmailConfigured(),
+        requiredInProduction: config.env === 'production',
+      },
+    });
+  })
+);
 
 router.post(
   '/register',

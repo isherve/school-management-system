@@ -1,39 +1,39 @@
 # Email & login OTP (SMTP)
 
-EduSMS sends **login codes**, **password reset links**, and **account notifications** via SMTP.
+EduSMS sends **login verification codes**, **password reset links**, and **account notifications** via SMTP.
 
-## Gmail (recommended for demos)
+## Production (mandatory)
+
+On **production** (`NODE_ENV=production`), login **cannot** send codes unless SMTP is fully configured. There is **no on-screen dev code** in production.
+
+Required on the **API** Vercel project (`school-management-system-api`):
+
+| Variable | Example |
+|----------|---------|
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | `ishimwehervin10@gmail.com` |
+| `SMTP_PASS` | Gmail **App Password** (16 characters) |
+| `EMAIL_FROM` | `EduSMS <ishimwehervin10@gmail.com>` |
+
+After saving variables, **redeploy** the API project.
+
+## Gmail App Password
 
 1. Enable 2-Step Verification on your Google account.
 2. Create an **App Password**: [Google App Passwords](https://myaccount.google.com/apppasswords)
-3. Edit `backend/.env`:
+3. Paste the password into **`SMTP_PASS`** (not your normal Gmail password).
 
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your@gmail.com
-SMTP_PASS=your-16-char-app-password
-EMAIL_FROM="EduSMS <your@gmail.com>"
-FRONTEND_URL=http://localhost:8080
-```
+## Local development
 
-4. Restart the backend: `npm run dev` (from project root) or `npm run dev --prefix backend`.
+Copy `backend/.env.example` to `backend/.env` and set `SMTP_*`. Without SMTP, codes are logged in the console and shown on the login page **in development only**.
 
-## Verify configuration
+## Verify
 
-- Open **Settings → Email & OTP** in the admin dashboard (staff only).
-- Status should show **Email configured: Yes**.
-- Test: Login → **Email Code** tab → enter a registered user email (e.g. `admin@demoschool.edu`).
+- **Settings → Email & OTP** (staff): should show configured.
+- **Login → Password**: after password, a code must arrive by email (production).
 
-## Development without SMTP
+## Security
 
-If `SMTP_USER` is empty:
-
-- Codes are logged in the backend console: `[Login Code] email: 123456`
-- In development, the **6-digit code also appears on the login screen** after you request it.
-
-## Security notes
-
-- Never commit `.env` or real passwords to git.
-- Use App Passwords, not your main Gmail password.
+- Never commit `.env` or app passwords to git.
 - OTP codes expire in **10 minutes** and are stored hashed in the database.

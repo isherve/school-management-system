@@ -153,6 +153,9 @@ export function SettingsPage() {
               {integrations?.devCodeOnScreen && (
                 <p className="text-muted-foreground mt-2">{t('settings.email.devHint')}</p>
               )}
+              {integrations?.smtpMandatory && (
+                <p className="text-muted-foreground mt-2">{t('settings.email.mandatoryProduction')}</p>
+              )}
             </div>
             <dl className="grid gap-2 sm:grid-cols-2">
               <div><dt className="text-muted-foreground">{t('settings.email.smtpHost')}</dt><dd className="font-mono">{integrations?.smtpHost ?? '—'}</dd></div>

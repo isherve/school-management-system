@@ -37,7 +37,11 @@ export function LoginPage() {
   const [devCode, setDevCode] = useState<string | null>(null);
 
   const apiError = (err: unknown, fallback: string) => {
-    const axiosErr = err as { response?: { data?: { message?: string } } };
+    const axiosErr = err as { response?: { data?: { message?: string; code?: string } } };
+    const code = axiosErr.response?.data?.code;
+    if (code === 'SMTP_NOT_CONFIGURED' || code === 'EMAIL_DELIVERY_FAILED') {
+      return t('auth.smtpRequired');
+    }
     return axiosErr.response?.data?.message || (err instanceof Error ? err.message : fallback);
   };
 

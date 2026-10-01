@@ -10,12 +10,25 @@ const transporter = nodemailer.createTransport({
     : undefined,
 });
 
+const PLACEHOLDER = /your-|example\.com|changeme|placeholder|app-password/i;
+
+export function isEmailConfigured(): boolean {
+  const user = config.email.user?.trim();
+  const pass = config.email.pass?.trim();
+  if (!user || !pass) return false;
+  if (PLACEHOLDER.test(user) || PLACEHOLDER.test(pass)) return false;
+  return true;
+}
+
 export async function sendEmail(options: {
   to: string;
   subject: string;
   html: string;
 }): Promise<void> {
-  if (!config.email.user) {
+  if (!isEmailConfigured()) {
+    if (config.env === 'production') {
+      throw new Error('SMTP_NOT_CONFIGURED');
+    }
     console.log(`[Email Mock] To: ${options.to}, Subject: ${options.subject}`);
     return;
   }
@@ -69,6 +82,3 @@ export function loginCodeEmailTemplate(firstName: string, code: string): string 
   `;
 }
 
-export function isEmailConfigured(): boolean {
-  return Boolean(config.email.user);
-}

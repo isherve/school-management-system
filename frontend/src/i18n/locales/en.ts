@@ -234,6 +234,7 @@ export const en = {
     devCodeHint: 'Development mode — SMTP is not configured. Use this code to sign in:',
     emailNotRegistered: 'No account found for this email. Use a demo account (e.g. admin@demoschool.edu) or request an account first.',
     emailDeliveryFailed: 'Email could not be delivered. Use the code shown below or check SMTP settings.',
+    smtpRequired: 'Login codes must be sent by email. SMTP is missing or invalid on the server (set SMTP_USER and Gmail App Password as SMTP_PASS).',
     missingCredentials: 'Please enter your email and password.',
     enterEmail: 'Please enter your email address.',
     requestAccount: 'Request an account',
@@ -446,6 +447,7 @@ export const en = {
       from: 'From address',
       instructions: 'Set these in backend/.env and restart the API server:',
       docHint: 'Full guide:',
+      mandatoryProduction: 'In production, SMTP is mandatory — login codes are never shown on screen.',
     },
   },
   academics: {
