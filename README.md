@@ -143,20 +143,13 @@ Frontend (`frontend/.env.example`):
 
 ## Deployment
 
-Config files are in the repo. This workspace does **not** include a live site or a public GitHub remote you should assume is published. Deploy with your own accounts.
+**GitHub:** [github.com/isherve/school-management-system](https://github.com/isherve/school-management-system) (`main`).
 
-**Frontend (Vercel)**
+**Frontend (Vercel):** Production alias [school-management-system-gamma-lyart.vercel.app](https://school-management-system-gamma-lyart.vercel.app) (repo root `vercel.json` builds `frontend/`). In the Vercel project, set **`VITE_API_URL`** to your live API base, e.g. `https://<api-host>/api/v1`. Turn off **Deployment Protection** if the site should be public.
 
-1. Import the repo and set the root directory to `frontend`.
-2. `frontend/vercel.json` builds the Vite app and rewrites `/api/*` to `https://your-backend.railway.app/api/$1`. Replace that host with your real API host.
-3. Set `VITE_API_URL` to `https://<your-railway-host>/api/v1`.
+**Backend (Railway or similar):** Use root directory `backend`. Start command in `backend/railway.json` is `npx prisma db push && node dist/server.js`. Set `DATABASE_URL` (SQLite file on a volume, or switch the Prisma provider to PostgreSQL for managed DB), `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL` (Vercel URL), and optional `SMTP_*` for email OTP. Run `npm run db:seed` once after the first deploy. A new Railway trial may require a paid plan before deploy.
 
-**Backend (Railway)**
-
-1. Set the root directory to `backend`.
-2. `backend/railway.json` builds with Nixpacks and starts with `npx prisma migrate deploy && node dist/server.js`.
-3. There is **no** `prisma/migrations` folder yet, and the schema provider is **sqlite**. `migrate deploy` will fail, and a Railway Postgres plugin will not match this schema until you change the datasource to `postgresql`, create migrations, and set `DATABASE_URL`.
-4. Set `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL` (your Vercel URL), and optional `OPENAI_API_KEY` or `GEMINI_API_KEY`.
+**Note:** Serverless-only hosting (Express on Vercel without a real database) is not supported for this app; the API needs a persistent database.
 
 Do not commit `.env` files.
 

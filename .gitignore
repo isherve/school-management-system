@@ -42,3 +42,5 @@ coverage/
 # Uploads
 uploads/
 temp/
+
+.vercel

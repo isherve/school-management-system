@@ -14,7 +14,12 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (origin === config.frontendUrl) return callback(null, true);
+      if (/^https:\/\/([a-z0-9-]+\.)*vercel\.app$/i.test(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   })
 );
