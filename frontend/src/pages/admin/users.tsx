@@ -6,13 +6,59 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { userApi, academicsApi } from '@/services/endpoints';
+import { userApi, academicsApi, studentApi } from '@/services/endpoints';
 import { useTranslation, useFormatDate } from '@/i18n';
 
 const ROLES = [
   'SCHOOL_OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'REGISTRAR', 'BURSAR',
   'ACCOUNTANT', 'TEACHER', 'CLASS_TEACHER', 'LIBRARIAN', 'PARENT', 'STUDENT',
 ];
+
+const GUARDIAN_RELATIONSHIPS = ['Parent', 'Father', 'Mother', 'Guardian'] as const;
+
+function StudentLinkPicker({
+  students,
+  selectedIds,
+  onChange,
+  label,
+  hint,
+}: {
+  students: { id: string; admissionNumber: string; user: { firstName: string; lastName: string } }[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  label: string;
+  hint: string;
+}) {
+  const toggle = (id: string) => {
+    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+  };
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium block">{label}</label>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+      <div className="max-h-40 overflow-y-auto rounded-md border border-input p-2 space-y-1">
+        {students.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2 text-center">—</p>
+        ) : (
+          students.map((s) => (
+            <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(s.id)}
+                onChange={() => toggle(s.id)}
+                className="rounded border-input"
+              />
+              <span>
+                {s.user.firstName} {s.user.lastName}
+                <span className="text-muted-foreground ml-1 font-mono text-xs">({s.admissionNumber})</span>
+              </span>
+            </label>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 type AdminTab = 'users' | 'requests';
 
@@ -30,9 +76,13 @@ export function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [showAdd, setShowAdd] = useState(false);
   const [approveRequest, setApproveRequest] = useState<{
-    id: string; name: string; email: string; position: string; employmentGroup: string;
+    id: string; name: string; email: string; position: string; employmentGroup: string; regNo: string;
+    parentEmail?: string | null;
   } | null>(null);
   const [approveClassId, setApproveClassId] = useState('');
+  const [approveLinkedStudentIds, setApproveLinkedStudentIds] = useState<string[]>([]);
+  const [guardianRelationship, setGuardianRelationship] = useState('Parent');
+  const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
   const [rejectRequest, setRejectRequest] = useState<{ id: string; name: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [editUser, setEditUser] = useState<{
@@ -53,8 +103,23 @@ export function AdminUsersPage() {
   const { data: classes } = useQuery({
     queryKey: ['academics-classes'],
     queryFn: academicsApi.getClasses,
-    enabled: (showAdd && form.role === 'STUDENT') || !!approveRequest,
+    enabled: (showAdd && form.role === 'STUDENT') || (!!approveRequest && approveRequest.position === 'Student'),
   });
+
+  const needStudentPicker =
+    (showAdd && form.role === 'PARENT') || (!!approveRequest && approveRequest.position === 'Parent');
+
+  const { data: studentsForLink } = useQuery({
+    queryKey: ['students-link-picker'],
+    queryFn: () => studentApi.getAll({ limit: '500' }),
+    enabled: needStudentPicker,
+  });
+
+  const linkableStudents = (studentsForLink?.data || []) as {
+    id: string;
+    admissionNumber: string;
+    user: { firstName: string; lastName: string };
+  }[];
 
   const { data: accountRequests, isLoading: requestsLoading } = useQuery({
     queryKey: ['account-requests'],
@@ -64,11 +129,18 @@ export function AdminUsersPage() {
   const pendingCount = accountRequests?.filter((r: { status: string }) => r.status === 'PENDING').length || 0;
 
   const createMutation = useMutation({
-    mutationFn: () => userApi.create(form),
+    mutationFn: () => userApi.create({
+      ...form,
+      ...(form.role === 'PARENT'
+        ? { studentIds: linkedStudentIds, guardianRelationship }
+        : {}),
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setShowAdd(false);
       setForm({ firstName: '', lastName: '', email: '', password: 'Admin@123', role: 'TEACHER', phone: '', classId: '' });
+      setLinkedStudentIds([]);
+      setGuardianRelationship('Parent');
     },
   });
 
@@ -98,12 +170,17 @@ export function AdminUsersPage() {
     mutationFn: () => userApi.approveAccountRequest(approveRequest!.id, {
       classId: approveClassId || undefined,
       password: 'Admin@123',
+      ...(approveRequest!.position === 'Parent'
+        ? { studentIds: approveLinkedStudentIds, guardianRelationship }
+        : {}),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['account-requests'] });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setApproveRequest(null);
       setApproveClassId('');
+      setApproveLinkedStudentIds([]);
+      setGuardianRelationship('Parent');
     },
   });
 
@@ -292,9 +369,15 @@ export function AdminUsersPage() {
                         <td className="py-3 px-2 text-right">
                           {r.status === 'PENDING' ? (
                             <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => setApproveRequest({
-                                id: r.id, name: r.name, email: r.email, position: r.position, employmentGroup: r.employmentGroup,
-                              })}>
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setApproveRequest({
+                                  id: r.id, name: r.name, email: r.email, position: r.position,
+                                  employmentGroup: r.employmentGroup, regNo: r.regNo,
+                                  parentEmail: (r as { parentEmail?: string }).parentEmail,
+                                });
+                                setApproveLinkedStudentIds([]);
+                                setGuardianRelationship('Parent');
+                              }}>
                                 <Check className="h-4 w-4 text-green-600" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={() => setRejectRequest({ id: r.id, name: r.name })}>
@@ -328,6 +411,11 @@ export function AdminUsersPage() {
               <p><span className="text-muted-foreground">Position:</span> {approveRequest.position}</p>
               <p><span className="text-muted-foreground">Boarding:</span> {approveRequest.employmentGroup}</p>
             </div>
+            {approveRequest.position === 'Student' && approveRequest.parentEmail && (
+              <p className="text-sm text-muted-foreground">
+                {t('auth.requestAccountParentEmail')}: <strong>{approveRequest.parentEmail}</strong>
+              </p>
+            )}
             {approveRequest.position === 'Student' && classes?.length > 0 && (
               <div>
                 <label className="text-sm font-medium mb-1 block">{t('admin.selectClass')}</label>
@@ -342,6 +430,32 @@ export function AdminUsersPage() {
                   ))}
                 </select>
               </div>
+            )}
+            {approveRequest.position === 'Parent' && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.approveParentLinkHint', { regNo: approveRequest.regNo })}
+                </p>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">{t('admin.guardianRelationship')}</label>
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={guardianRelationship}
+                    onChange={(e) => setGuardianRelationship(e.target.value)}
+                  >
+                    {GUARDIAN_RELATIONSHIPS.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <StudentLinkPicker
+                  students={linkableStudents}
+                  selectedIds={approveLinkedStudentIds}
+                  onChange={setApproveLinkedStudentIds}
+                  label={t('admin.linkChildren')}
+                  hint={t('admin.linkChildrenHint')}
+                />
+              </>
             )}
             <p className="text-xs text-muted-foreground">{t('admin.defaultPassword')}: Admin@123</p>
             <div className="flex gap-2 pt-2">
@@ -408,6 +522,29 @@ export function AdminUsersPage() {
                 ))}
               </select>
             </div>
+          )}
+          {form.role === 'PARENT' && (
+            <>
+              <div>
+                <label className="text-sm font-medium mb-1 block">{t('admin.guardianRelationship')}</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={guardianRelationship}
+                  onChange={(e) => setGuardianRelationship(e.target.value)}
+                >
+                  {GUARDIAN_RELATIONSHIPS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <StudentLinkPicker
+                students={linkableStudents}
+                selectedIds={linkedStudentIds}
+                onChange={setLinkedStudentIds}
+                label={t('admin.linkChildren')}
+                hint={t('admin.linkChildrenHint')}
+              />
+            </>
           )}
           <div className="flex gap-2 pt-2">
             <Button onClick={() => createMutation.mutate()} disabled={!form.email || !form.firstName || createMutation.isPending}>

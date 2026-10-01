@@ -330,6 +330,7 @@ export class AuthService {
     const {
       name, email, phone, position, campus, college, regNo,
       gender, dateOfBirth, admissionDate, employmentGroup, degree, qualification,
+      parentEmail, parentRelationship,
     } = data;
 
     if (!name || !email || !phone || !position || !campus || !college || !regNo || !gender || !dateOfBirth || !admissionDate || !employmentGroup || !degree || !qualification) {
@@ -367,6 +368,12 @@ export class AuthService {
         employmentGroup,
         degree,
         qualification,
+        ...(position === 'Student' && parentEmail?.trim()
+          ? {
+              parentEmail: parentEmail.trim().toLowerCase(),
+              parentRelationship: parentRelationship?.trim() || 'Parent',
+            }
+          : {}),
       },
     });
 

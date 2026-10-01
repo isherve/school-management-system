@@ -75,6 +75,8 @@ export function RequestAccountPage() {
     employmentGroup: '',
     degree: '',
     qualification: '',
+    parentEmail: '',
+    parentRelationship: 'Parent',
   });
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -207,10 +209,50 @@ export function RequestAccountPage() {
 
           <hr className="border-gray-100 dark:border-gray-800" />
 
+          {form.position === 'Student' && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('auth.requestAccountParentEmail')}</label>
+                <input
+                  type="email"
+                  value={form.parentEmail}
+                  onChange={set('parentEmail')}
+                  placeholder="parent@example.com"
+                  className={inputClass}
+                />
+                <p className="text-xs text-gray-400">{t('auth.requestAccountParentEmailHint')}</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('students.parentRelationship')}</label>
+                <select value={form.parentRelationship} onChange={set('parentRelationship')} className={selectClass}>
+                  <option value="Parent">Parent</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Guardian">Guardian</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <RequiredLabel>{t('auth.requestAccountRegNo')}</RequiredLabel>
-              <input type="text" value={form.regNo} onChange={set('regNo')} placeholder={t('auth.requestAccountRegNoPlaceholder')} className={inputClass} />
+              <RequiredLabel>
+                {form.position === 'Parent' ? t('auth.requestAccountParentRegNo') : t('auth.requestAccountRegNo')}
+              </RequiredLabel>
+              <input
+                type="text"
+                value={form.regNo}
+                onChange={set('regNo')}
+                placeholder={
+                  form.position === 'Parent'
+                    ? t('auth.requestAccountParentRegNo')
+                    : t('auth.requestAccountRegNoPlaceholder')
+                }
+                className={inputClass}
+              />
+              {form.position === 'Parent' && (
+                <p className="text-xs text-gray-400">{t('auth.requestAccountParentRegNoHint')}</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <RequiredLabel>{t('auth.requestAccountGender')}</RequiredLabel>

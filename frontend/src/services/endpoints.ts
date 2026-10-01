@@ -268,7 +268,12 @@ export const userApi = {
     api.post(`/users/${id}/reset-password`, { password }).then((r) => r.data),
   getAccountRequests: (status?: string) =>
     api.get('/users/account-requests', { params: status ? { status } : undefined }).then((r) => r.data.data),
-  approveAccountRequest: (id: string, data?: { classId?: string; password?: string }) =>
+  approveAccountRequest: (id: string, data?: {
+    classId?: string;
+    password?: string;
+    studentIds?: string[];
+    guardianRelationship?: string;
+  }) =>
     api.post(`/users/account-requests/${id}/approve`, data || {}).then((r) => r.data),
   rejectAccountRequest: (id: string, reason?: string) =>
     api.post(`/users/account-requests/${id}/reject`, { reason }).then((r) => r.data),

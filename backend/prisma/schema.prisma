@@ -1291,6 +1291,8 @@ model AccountRequest {
   employmentGroup String
   degree          String
   qualification   String
+  parentEmail         String?
+  parentRelationship  String?
   status          AccountRequestStatus @default(PENDING)
   reviewedBy      String?
   reviewedAt      DateTime?

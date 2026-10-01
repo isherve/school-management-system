@@ -57,7 +57,12 @@ router.post(
       getRouteParam(req.params.id),
       req.user!.schoolId!,
       req.user!.userId,
-      { classId: req.body.classId, password: req.body.password }
+      {
+        classId: req.body.classId,
+        password: req.body.password,
+        studentIds: req.body.studentIds,
+        guardianRelationship: req.body.guardianRelationship,
+      }
     );
     res.json({ success: true, data: user, message: 'Account request approved and user created' });
   })

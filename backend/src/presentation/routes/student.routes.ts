@@ -46,6 +46,9 @@ router.post(
     body('password').isLength({ min: 8 }),
     body('firstName').trim().notEmpty(),
     body('lastName').trim().notEmpty(),
+    body('guardians').optional().isArray(),
+    body('guardians.*.parentEmail').optional().isEmail().normalizeEmail(),
+    body('guardians.*.relationship').optional().trim().notEmpty(),
   ],
   validate,
   asyncHandler(async (req, res) => {

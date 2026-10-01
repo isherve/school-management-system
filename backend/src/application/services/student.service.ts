@@ -6,6 +6,7 @@ import {
   buildPaginatedResult,
   generateAdmissionNumber,
 } from '../../shared/utils/index.js';
+import { linkStudentToParentByEmail } from './guardian.service.js';
 
 export class StudentService {
   async findAll(schoolId: string, query: Record<string, unknown>) {
@@ -142,8 +143,29 @@ export class StudentService {
         include: {
           user: { select: { id: true, email: true, firstName: true, lastName: true } },
           class: true,
+          guardians: {
+            include: {
+              parent: {
+                include: { user: { select: { email: true, firstName: true, lastName: true } } },
+              },
+            },
+          },
         },
       });
+
+      if (data.guardians?.length) {
+        for (const g of data.guardians) {
+          if (!g.parentEmail?.trim()) continue;
+          await linkStudentToParentByEmail(
+            schoolId,
+            student.id,
+            g.parentEmail,
+            g.relationship || 'Parent',
+            g.isPrimary ?? false,
+            tx
+          );
+        }
+      }
 
       return student;
     });

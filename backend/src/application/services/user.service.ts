@@ -4,6 +4,11 @@ import prisma from '../../infrastructure/database/prisma.client.js';
 import { ConflictError, NotFoundError } from '../../shared/errors/app.error.js';
 import { getPaginationParams, buildPaginatedResult } from '../../shared/utils/index.js';
 import { sendEmail } from '../../infrastructure/email/email.service.js';
+import {
+  linkParentToStudentByAdmissionNumber,
+  linkParentToStudents,
+  linkStudentToParentByEmail,
+} from './guardian.service.js';
 
 export class UserService {
   async findAll(schoolId: string, query: Record<string, unknown>) {
@@ -55,6 +60,8 @@ export class UserService {
     phone?: string;
     classId?: string;
     departmentId?: string;
+    studentIds?: string[];
+    guardianRelationship?: string;
   }) {
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new ConflictError('Email already registered');
@@ -107,7 +114,16 @@ export class UserService {
           },
         });
       } else if (data.role === 'PARENT') {
-        await tx.parent.create({ data: { userId: user.id } });
+        const parent = await tx.parent.create({ data: { userId: user.id } });
+        if (data.studentIds?.length) {
+          await linkParentToStudents(
+            schoolId,
+            parent.id,
+            data.studentIds,
+            data.guardianRelationship || 'Parent',
+            tx
+          );
+        }
       }
 
       return user;
@@ -162,7 +178,7 @@ export class UserService {
     id: string,
     schoolId: string,
     reviewerId: string,
-    options?: { classId?: string; password?: string }
+    options?: { classId?: string; password?: string; studentIds?: string[]; guardianRelationship?: string }
   ) {
     const request = await prisma.accountRequest.findFirst({
       where: { id, schoolId, status: AccountRequestStatus.PENDING },
@@ -192,13 +208,15 @@ export class UserService {
       role,
       phone: request.phone,
       classId: options?.classId,
+      studentIds: role === UserRole.PARENT ? options?.studentIds : undefined,
+      guardianRelationship: options?.guardianRelationship,
     });
 
     if (role === UserRole.STUDENT) {
       const gender: Gender | undefined =
         request.gender === 'Male' ? Gender.MALE : request.gender === 'Female' ? Gender.FEMALE : undefined;
 
-      await prisma.student.update({
+      const student = await prisma.student.update({
         where: { userId: user.id },
         data: {
           admissionNumber: request.regNo,
@@ -207,6 +225,36 @@ export class UserService {
           admissionDate: request.admissionDate,
         },
       });
+
+      if (request.parentEmail?.trim()) {
+        await linkStudentToParentByEmail(
+          schoolId,
+          student.id,
+          request.parentEmail,
+          request.parentRelationship || 'Parent',
+          true
+        );
+      }
+    }
+
+    if (role === UserRole.PARENT) {
+      const parent = await prisma.parent.findUnique({ where: { userId: user.id } });
+      if (parent) {
+        const rel = options?.guardianRelationship || 'Parent';
+        const studentIds = new Set(options?.studentIds ?? []);
+        if (request.regNo?.trim()) {
+          const byAdmission = await prisma.student.findFirst({
+            where: { schoolId, admissionNumber: request.regNo.trim() },
+          });
+          if (byAdmission) studentIds.add(byAdmission.id);
+          else if (studentIds.size === 0) {
+            await linkParentToStudentByAdmissionNumber(schoolId, parent.id, request.regNo, rel);
+          }
+        }
+        if (studentIds.size > 0) {
+          await linkParentToStudents(schoolId, parent.id, [...studentIds], rel);
+        }
+      }
     }
 
     await prisma.accountRequest.update({

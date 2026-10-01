@@ -19,6 +19,7 @@ export function StudentsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: 'Admin@123', classId: '',
+    parentEmail: '', parentRelationship: 'Parent',
   });
 
   const { data, isLoading } = useQuery({
@@ -33,11 +34,28 @@ export function StudentsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => studentApi.create(form),
+    mutationFn: () => {
+      const { parentEmail, parentRelationship, ...rest } = form;
+      return studentApi.create({
+        ...rest,
+        ...(parentEmail.trim()
+          ? {
+              guardians: [{
+                parentEmail: parentEmail.trim(),
+                relationship: parentRelationship,
+                isPrimary: true,
+              }],
+            }
+          : {}),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       setShowAdd(false);
-      setForm({ firstName: '', lastName: '', email: '', password: 'Admin@123', classId: '' });
+      setForm({
+        firstName: '', lastName: '', email: '', password: 'Admin@123', classId: '',
+        parentEmail: '', parentRelationship: 'Parent',
+      });
     },
   });
 
@@ -148,6 +166,26 @@ export function StudentsPage() {
               {classes?.map((c: { id: string; name: string; section?: string }) => (
                 <option key={c.id} value={c.id}>{c.name} {c.section || ''}</option>
               ))}
+            </select>
+          </div>
+          <Input
+            label={t('students.parentEmail')}
+            type="email"
+            value={form.parentEmail}
+            onChange={(e) => setForm({ ...form, parentEmail: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground -mt-2">{t('students.parentEmailHint')}</p>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{t('students.parentRelationship')}</label>
+            <select
+              value={form.parentRelationship}
+              onChange={(e) => setForm({ ...form, parentRelationship: e.target.value })}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="Parent">Parent</option>
+              <option value="Father">Father</option>
+              <option value="Mother">Mother</option>
+              <option value="Guardian">Guardian</option>
             </select>
           </div>
           <div className="flex gap-2 pt-2">

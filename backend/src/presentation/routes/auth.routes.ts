@@ -138,6 +138,8 @@ router.post(
     body('employmentGroup').trim().notEmpty(),
     body('degree').trim().notEmpty(),
     body('qualification').trim().notEmpty(),
+    body('parentEmail').optional({ values: 'falsy' }).isEmail().normalizeEmail(),
+    body('parentRelationship').optional({ values: 'falsy' }).trim(),
   ],
   validate,
   asyncHandler(async (req, res) => {
